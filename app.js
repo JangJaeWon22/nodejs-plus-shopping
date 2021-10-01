@@ -1,8 +1,9 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const { Op } = require("sequelize");
 const jwt = require("jsonwebtoken");
 const Joi = require("joi");
-const User = require("./models/user");
+const { User } = require("./models"); // ./models/index 인데 index 생략 가능
 const Goods = require("./models/goods");
 const Cart = require("./models/cart");
 const authMiddleware = require("./middlewares/auth-middleware");
@@ -28,7 +29,6 @@ const registerUserSchema = Joi.object({
 
 //------------회원가입
 router.post("/users", async (req, res) => {
-  // const { nickname, email, password, confirmPassword } = req.body;
   try {
     const { nickname, email, password, confirmPassword } = await registerUserSchema.validateAsync(req.body);
 
@@ -38,8 +38,10 @@ router.post("/users", async (req, res) => {
       });
       return; //예외처리 다른코드가 실행되지 않게 하기 위해서
     }
-    const existUsers = await User.find({
-      $or: [{ email }, { nickname }],
+    const existUsers = await User.findAll({
+      where: {
+        [Op.or]: [{ nickname }, { email }],
+      },
     });
     if (existUsers.length) {
       res.status(400).send({
@@ -47,8 +49,7 @@ router.post("/users", async (req, res) => {
       });
       return;
     }
-    const user = new User({ email, nickname, password });
-    await user.save();
+    const user = await User.create({ email, nickname, password });
     res.status(201).send({});
   }
   catch (err) {
@@ -70,7 +71,7 @@ const authUserSchema = Joi.object({
 router.post("/auth", async (req, res) => {
   try {
     const { email, password } = await authUserSchema.validateAsync(req.body);
-    const user = await User.findOne({ email, password }).exec();
+    const user = await User.findOne({ where: { email, password }});
     if (!user) {
       //401은 인증 실패
       res.status(401).send({

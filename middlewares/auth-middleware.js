@@ -1,5 +1,5 @@
 const jwt =require('jsonwebtoken');
-const User = require('../models/user')
+const { User } = require('../models')
 
 module.exports = (req, res, next) => {
     // console.log("auth미들웨어 사용함")
@@ -16,7 +16,8 @@ module.exports = (req, res, next) => {
 
     try{
         const { userId } = jwt.verify(tokenValue, "1q2w3e4r1!");
-        User.findById(userId).exec().then((user) => {
+        User.findByPk(userId)
+        .then((user) => {
             //핵심!!! locals!!
             res.locals.user = user; // 중요!!!
             next(); // next가 반드시 호출 되어야 됨.!!
