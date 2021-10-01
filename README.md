@@ -7,7 +7,7 @@
 5. 사용자 인증 미들웨어 구현(models)
 6. 사용자 인증을 위한 내 정보 조회 API 구현
 7. joi 라이브러리로 로그인, 회원가입 시 입력값 검증
-8. MySQL 서버 도커로 실행
+8. MySQL 서버 도커로 실행 -- mongoose 삭제
 9. Sequelize 설정 첫번째 진행 (로그인, 회원가입, 미들웨어)
 10. Sequelize 설정 두번째 진행 (상품 관련 정보)
 
@@ -41,4 +41,4 @@
   3. jwtwebtoken
   4. joi
   5. Sequelize
-  6. mysql
+  6. mysql2

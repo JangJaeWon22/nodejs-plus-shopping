@@ -1,18 +1,9 @@
 const express = require("express");
-const mongoose = require("mongoose");
 const { Op } = require("sequelize");
 const jwt = require("jsonwebtoken");
 const Joi = require("joi");
 const { User, Goods, Cart } = require("./models"); // ./models/index 인데 index 생략 가능
 const authMiddleware = require("./middlewares/auth-middleware");
-
-
-mongoose.connect("mongodb://localhost/shopping-demo", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-const db = mongoose.connection;
-db.on("error", console.error.bind(console, "connection error:"));
 
 const app = express();
 const router = express.Router();
@@ -47,7 +38,7 @@ router.post("/users", async (req, res) => {
       });
       return;
     }
-    const user = await User.create({ email, nickname, password });
+    await User.create({ email, nickname, password });
     res.status(201).send({});
   }
   catch (err) {
@@ -108,7 +99,7 @@ router.get("/goods/cart", authMiddleware, async (req, res) => {
   const { userId } = res.locals.user;
 
   const cart = await Cart.findAll({
-    where : {
+    where: {
       userId,
     }
   });
@@ -213,7 +204,7 @@ router.get("/goods", authMiddleware, async (req, res) => {
  */
 router.get("/goods/:goodsId", authMiddleware, async (req, res) => {
   const { goodsId } = req.params;
-  const goods = await Goods.findByPK(goodsId);
+  const goods = await Goods.findByPk(goodsId);
 
   if (!goods) {
     res.status(404).send({});
