@@ -1,12 +1,45 @@
 const express = require("express");
+const Http = require("http");
+const socketIo = require("socket.io");
 const { Op } = require("sequelize");
 const jwt = require("jsonwebtoken");
 const Joi = require("joi");
 const { User, Goods, Cart } = require("./models"); // ./models/index 인데 index 생략 가능
 const authMiddleware = require("./middlewares/auth-middleware");
+const { toUnicode } = require("punycode");
 
 const app = express();
+const http = Http.createServer(app); // express app을 http 서버로 감싸기
+const io = socketIo(http); // http 객체를 Socket.io 모듈에 넘겨서 소켓 핸들러 생성
 const router = express.Router();
+
+// 소켓 연결 이벤트 핸들링
+io.on("connection", (sock) => {
+  console.log("새로운 소켓이 연결됐어요!");
+
+  sock.on("CHANGED_PAGE", (data) => {
+    // console.log("123", data, io.engine.clientsCount)
+    if ( io.engine.clientsCount > 1 ){
+      sock.emit("SAME_PAGE_VIEWER_COUNT", io.engine.clientsCount);
+    }
+  });
+
+  sock.on("BUY", (data) => {
+    const payload = {
+      nickname: data.nickname,
+      goosId: data.goodsId,
+      goodsName: data.goodsName,
+      date: new Date().toISOString(),
+    };
+    console.log("클라이언트가 구매한 데이터: ", data, new Date());
+    io.emit("BUY_GOODS", payload);
+    // sock.broadcast.emit("BUY_GOODS",payload); //나를 제외한 나머지 대상에세 메세지 띄우기
+  });
+
+  sock.on("disconnect", () => {
+    console.log(sock.id, "연결이 끊어졌어요!");
+  });
+});
 
 //joi로 입력값 검증!
 const registerUserSchema = Joi.object({
@@ -217,6 +250,6 @@ router.get("/goods/:goodsId", authMiddleware, async (req, res) => {
 app.use("/api", express.urlencoded({ extended: false }), router);
 app.use(express.static("assets"));
 
-app.listen(8080, () => {
+http.listen(8080, () => {
   console.log("서버가 요청을 받을 준비가 됐어요");
 });
