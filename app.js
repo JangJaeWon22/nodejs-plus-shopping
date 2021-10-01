@@ -13,36 +13,53 @@ const http = Http.createServer(app); // express app을 http 서버로 감싸기
 const io = socketIo(http); // http 객체를 Socket.io 모듈에 넘겨서 소켓 핸들러 생성
 const router = express.Router();
 
+const socketIdMap = {};
+function emitSamePageViewerCount() {
+  const countByUrl = Object.values(socketIdMap).reduce((value, url) => {
+    return {
+      ...value,
+      [url]: value[url] ? value[url] + 1 : 1,
+    };
+  }, {});
+
+  for (const [socketId, url] of Object.entries(socketIdMap)) {
+    const count = countByUrl[url];
+    io.to(socketId).emit("SAME_PAGE_VIEWER_COUNT", count);
+  }
+}
+
 // 소켓 연결 이벤트 핸들링
 io.on("connection", (sock) => {
+  socketIdMap[sock.id] = null;
   console.log("새로운 소켓이 연결됐어요!");
 
   sock.on("CHANGED_PAGE", (data) => {
     // console.log("123", data, io.engine.clientsCount)
-    if ( io.engine.clientsCount > 1 ){
-      sock.emit("SAME_PAGE_VIEWER_COUNT", io.engine.clientsCount);
-    }
-  });
+    socketIdMap[sock.id] = data;
+    emitSamePageViewerCount();
 
-  sock.on("BUY", (data) => {
-    const payload = {
-      nickname: data.nickname,
-      goosId: data.goodsId,
-      goodsName: data.goodsName,
-      date: new Date().toISOString(),
-    };
-    console.log("클라이언트가 구매한 데이터: ", data, new Date());
-    io.emit("BUY_GOODS", payload);
-    // sock.broadcast.emit("BUY_GOODS",payload); //나를 제외한 나머지 대상에세 메세지 띄우기
-  });
+    sock.on("BUY", (data) => {
+      const payload = {
+        nickname: data.nickname,
+        goosId: data.goodsId,
+        goodsName: data.goodsName,
+        date: new Date().toISOString(),
+      };
+      console.log("클라이언트가 구매한 데이터: ", data, new Date());
+      io.emit("BUY_GOODS", payload);
+      // sock.broadcast.emit("BUY_GOODS",payload); //나를 제외한 나머지 대상에세 메세지 띄우기
+    });
 
-  sock.on("disconnect", () => {
-    console.log(sock.id, "연결이 끊어졌어요!");
+    sock.on("disconnect", () => {
+      delete socketIdMap[sock.id];
+      console.log(sock.id, "연결이 끊어졌어요!");
+      emitSamePageViewerCount();
+    });
   });
 });
 
-//joi로 입력값 검증!
-const registerUserSchema = Joi.object({
+  //joi로 입력값 검증!
+  const registerUserSchema = Joi.object({
   nickname: Joi.string().alphanum().min(3).max(30).required(),
   email: Joi.string().email({ minDomainSegments: 2, tlds: { allow: ['com', 'net'] } }).required(),
   password: Joi.string().pattern(new RegExp('^[a-zA-Z0-9]{3,30}$')),
@@ -93,7 +110,7 @@ const authUserSchema = Joi.object({
 router.post("/auth", async (req, res) => {
   try {
     const { email, password } = await authUserSchema.validateAsync(req.body);
-    const user = await User.findOne({ where: { email, password }});
+    const user = await User.findOne({ where: { email, password } });
     if (!user) {
       //401은 인증 실패
       res.status(401).send({
@@ -173,10 +190,10 @@ router.put("/goods/:goodsId/cart", authMiddleware, async (req, res) => {
   const { quantity } = req.body;
 
   const existsCart = await Cart.findOne({
-    where: { 
+    where: {
       userId,
       goodsId,
-     },
+    },
   });
   if (existsCart) {
     existsCart.quantity = quantity;
