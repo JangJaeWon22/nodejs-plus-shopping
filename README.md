@@ -41,3 +41,4 @@
   3. jwtwebtoken
   4. joi
   5. Sequelize
+  6. mysql
